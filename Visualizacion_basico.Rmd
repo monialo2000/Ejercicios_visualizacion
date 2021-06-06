@@ -10,6 +10,7 @@ editor_options:
 library(tidyverse)
 library(lubridate)
 library(datos)
+library(maps)
 ```
 
 
@@ -223,7 +224,7 @@ ggplot(data = diamantes) +
   geom_bar(mapping = aes(x = corte, fill = claridad), position = "dodge")
 ```
 
-* positio = "jitter"
+* position = "jitter"
 En un scatterplot, cuando los puntos se superponen, este problema se conoce como solapamiento (overplotting), conviene usar position "jitter", que muestra los puntos superpuestos con diferencias para que se puedan ver. Se agrega "ruido" para que evitar la superposición. Ese ruido se puede controlar con **width**= controla la cantidad de desplazamiento horizontal, y
 **height**  controla la cantidad de desplazamiento vertical.
 
@@ -245,6 +246,96 @@ ggplot(mtcars, aes(am, vs)) +
   geom_point(position = jitter, color = "red", aes(am + 0.2, vs + 0.2))
 ```
 
+## Sistemas de Coordenadas
+
+Los sistemas de coordenadas son probablemente la parte más complicada de ggplot2. El sistema predeterminado es el sistema de coordenadas cartesianas, donde las posiciones x e y actúan independientemente para determinar la ubicación de cada punto. Hay varios otros sistemas de coordenadas que ocasionalmente son útiles.
+
+* coord_flip(): cambia ejes x y.Esto es útil, por ejemplo, si quieres diagramas de caja horizontales. También es útil para etiquetas largas
+
+```{r coord_flip}
+ggplot(data = millas, mapping = aes(x = clase, y = autopista)) +
+  geom_boxplot()
+
+ggplot(data = millas, mapping = aes(x = clase, y = autopista)) +
+  geom_boxplot() +
+  coord_flip()
+```
+
+* coord_quickmap(): establece correctamente la relación de aspecto para los mapas
+
+```{r coor_quickmap}
+nz <- map_data("nz")
+
+ggplot(nz, aes(long, lat, group = group)) +
+  geom_polygon(fill = "white", colour = "black")
+
+ggplot(nz, aes(long, lat, group = group)) +
+  geom_polygon(fill = "white", colour = "black") +
+  coord_quickmap()
+```
+
+* coord_polar() usa coordenadas polares. Las coordenadas polares revelan una conexión interesante entre un gráfico de barras y un gráfico de Coxcomb.
+ Un gráfico de torta es un gráfico de barras apiladas con la adición de coordenadas polares.
+
+```{r coord_polar}
+bar <- ggplot(data = diamantes) +
+  geom_bar(
+    mapping = aes(x = corte, fill = corte),
+    show.legend = FALSE,
+    width = 1
+  ) +
+  theme(aspect.ratio = 1) +
+  labs(x = NULL, y = NULL)
+
+bar + coord_flip()
+bar + coord_polar()
+```
+## labs: 
+labs agrega los títulos de los ejes, título del gráfico y la leyenda.
+labs() no es la única función para agregar títulos. xlab(), ylab() y ggtitle() realizan la misma función.
+show.legend = FALSE hace que la leyenda de color/figuras no se muestre
+
+```{r labs}
+ggplot(data = millas, mapping = aes(x = clase, y = autopista)) +
+  geom_boxplot() +
+  coord_flip() +
+  labs(y = "Millas por Galón en Autopista",
+       x = "Clase",
+       title = "Millas por Galón en Autopista por Tipo de Vehículo",
+       subtitle = "1999-2008",
+       caption = "Fuente: http://fueleconomy.gov")
+```
+
+
+## La gramática de gráficos en capas
+
+Con todo lo visto la plantilla para gráficos se puede escribir de forma más completa:
+```
+ggplot(data = <DATOS>) +
+ <GEOM_FUNCIÓN>(
+   mapping = aes(<MAPEOS>),
+   stat = <ESTADÍSTICAS>,
+   position = <POSICIÓN>
+ ) +
+ <FUNCIÓN_COORDENADAS> +
+ <FUNCIÓN_FACETAS>
+```
+
+__Los siete parámetros en la plantilla componen la gramática de los gráficos__, un sistema formal de construcción de gráficos. La gramática de los gráficos se basa en la idea de que puedes describir de manera única cualquier gráfico como una combinación de un conjunto de datos, un geom, un conjunto de mapeos, una estadística, un ajuste de posición, un sistema de coordenadas y un esquema de facetado.
+
+Para ver cómo funciona esto, considera cómo podrías construir un gráfico básico desde cero: podrías comenzar con un conjunto de datos y luego transformarlo en la información que deseas mostrar (con un stat).
+
+
+A continuación, podrías elegir un objeto geométrico para representar cada observación en los datos transformados. Luego, podrías usar las propiedades estéticas de los geoms para representar variables de los datos. Asignarías los valores de cada variable a los niveles de una estética.
+
+
+Posteriormente, podrías seleccionar un sistema de coordenadas para colocar los geoms. Podrías utilizar la ubicación de los objetos (que es en sí misma una propiedad estética) para mostrar los valores de las variables x e y. Ya en este punto podrías tener un gráfico completo, pero también podrías ajustar aún más las posiciones de los geoms dentro del sistema de coordenadas (un ajuste de posición) o dividir el gráfico en facetas. También podrías extender el gráfico agregando una o más capas adicionales, donde cada capa adicional usaría un conjunto de datos, un geom, un conjunto de mapeos, una estadística y un ajuste de posición.
+
+
+Puedes usar este método para construir cualquier gráfico que imagines. En otras palabras, puedes usar la plantilla de código que aprendiste en este capítulo para construir cientos de miles de gráficos únicos.
+
+
+Ejercicio adicional
 
 ```{r president_aproval}
 if (!file.exists('president_approval_polls.csv')){
