@@ -1,0 +1,279 @@
+---
+title: "R Visualizacion Basico"
+output:
+  html_document:
+    df_print: paged
+editor_options:
+  chunk_output_type: inline
+---
+```{r setup, include=FALSE}
+library(tidyverse)
+library(lubridate)
+library(datos)
+```
+
+
+## ggplot y gramática de gráficos
+función ggplot() crea un sistema de coordenadas al que se le pueden agregar capas.
+Cada función geom en ggplot2 tiene un argumento mapping que define como se mapean los datos. El argumento mapping siempre esta asociado con aes() y los argumentos x e y especifican que variables asignar a cada eje. Ggplot2 busca estas variables en el df definido en el argumento data.  
+  ggplot(data = <DATOS>) +
+ 	<GEOM_FUNCION>(mapping = aes(<MAPEOS>))
+
+```{r ggplot, color}
+ggplot(data = millas) +
+ geom_point(mapping = aes(x = cilindrada, y = autopista, color = clase))
+
+```
+
+Para mapear (o asignar) una estética a una variable, debes asociar el nombre de la estética al de la variable dentro de aes(). ggplot2 asignará automáticamente un nivel único de la estética (en este ejemplo, un color) a cada valor único de la variable. Este proceso es conocido como **escalamiento **.
+**Tener cuidado al asignar la estética, si usa tamaño no conviene asignarle variables discretas**
+lo que se defina en aes, debe mapear a una variable.
+**Para establecer una estética de forma manual, debes usar el nombre de la estética como un argumento de la función geom; es decir, va fuera de aes()**
+
+## Función Theme  
+se puede variar entre distintos tipos de fondos/cuadrícula
+theme_bw        theme_classic    theme_dark
+theme_det       theme_gray       theme_grey
+theme_light     theme_linedraw   them_minimal
+theme_replace   theme_set        theme_void         
+
+```{r them}
+ggplot(data = millas) +
+ geom_point(mapping = aes(x = cilindrada, y = autopista, color = autopista)) +
+ theme_bw() #fondo blanco lineas de grid
+ #theme_void sólo grafico sin ejes ni nada
+ 
+```
+
+```{r}
+millas %>% 
+  ggplot(aes(x = cilindrada, y = autopista)) + 
+  geom_point(color = "blue")
+```
+
+
+```{r stroke_aesthetic}
+# Note that shapes 21-24 have both stroke colour and a fill. The size of the filled part is controlled by size, the size of the stroke is controlled by stroke. Each is measured in mm, and the total size of the point is the sum of the two. Note that the size is constant along the diagonal in the following figure. Stroke cambia el contorno de la figura
+sizes <- expand.grid(size = (0:3) * 2, stroke = (0:3) * 2)
+ggplot(sizes, aes(size, stroke, size = size, stroke = stroke)) + 
+  geom_abline(slope = -1, intercept = 6, colour = "white", size = 6) + 
+  geom_point(shape = 21, fill = "red") +
+  scale_size_identity()
+```
+
+```{r colores_binarios}
+millas %>% 
+  ggplot(aes(x = cilindrada, y = autopista, color = cilindrada < 5)) + 
+  geom_point()
+```
+
+```{r multiples_geoms}
+ggplot(data = millas, mapping = aes(x = cilindrada, y = autopista)) +
+  geom_point(mapping = aes(color = clase)) +
+  geom_smooth()
+```
+
+```{r geom_smooth}
+ggplot(data = millas) +
+  geom_smooth(
+    mapping = aes(x = cilindrada, y = autopista, color = traccion),
+    show.legend = FALSE
+    )
+```
+
+```{r usando_mas_de_un_dataset}
+
+ggplot(data = millas, mapping = aes(x = cilindrada, y = autopista)) +
+  geom_point(mapping = aes(color = clase)) +
+  geom_smooth(data = filter(millas, clase == "subcompacto"), se = FALSE)
+```
+
+```{r ejercicio_3-6-6}
+millas %>%      #1
+  ggplot(aes(cilindrada,autopista)) + 
+  geom_point() +
+  geom_smooth(se = FALSE)
+
+millas %>%      #2
+  ggplot(aes(cilindrada,autopista, group = traccion)) + 
+  geom_point() +
+  geom_smooth(se = FALSE)
+
+millas %>%   #3
+  ggplot(aes(cilindrada, autopista, color = traccion)) + 
+  geom_point() +
+  geom_smooth(se = FALSE)
+
+millas %>%  #4
+  ggplot(aes(cilindrada, autopista)) +
+  geom_point(aes(color = traccion)) +
+  geom_smooth(se = FALSE)
+
+millas %>%  #5
+  ggplot(aes(cilindrada, autopista)) +
+  geom_point(aes(color = traccion)) +
+  geom_smooth(se = FALSE, aes(linetype = traccion))
+
+millas %>%  #6
+  ggplot(aes(cilindrada, autopista)) +
+  geom_point(color = "white", size = 4) + 
+  geom_point(aes(color = traccion), size = 2)  
+```
+```{r geom_tile}
+millas %>%
+  count(clase, traccion) %>%
+  complete(clase, traccion, fill = list(n = 0)) %>%  #para que no queden huecos, así todo pintado
+  ggplot(aes(x = clase, y = traccion)) +
+    geom_tile(mapping = aes(fill = n))
+```
+
+## Transformaciones estadísticas
+
+* geom_point scatterplot o diagramas de dispersión grafica los valores brutos (identity)
+* geom_bar, geom_histogram, geom_freqpoly (polígonos de frecuencia) utilizan bins (contenedores) con count() número de puntos que caen en cada contenedor. stat_count()
+* geom_smooth ajustan un modelo a los datos y luego grafican las predicciones del modelo
+* geom_boxplot calculan un resumen robusto de la distribución y luego muestran una caja con formato especial (mediana, quantiles, puntos... )
+
+```{r geom_bar}
+diamantes %>% 
+  ggplot(aes(corte)) +
+  geom_bar()
+
+# o bien
+ggplot(data = diamantes) +
+  stat_count(mapping = aes(x = corte))
+
+?geom_bar
+```
+Hay tres razones por las que podrías necesitar usar una estadística explícitamente:
+* Es posible que desees anular la estadística predeterminada
+```{r stat_anular}
+demo <- tribble(
+  ~corte,     ~freq,
+  "Regular",   1610,
+  "Bueno",     4906,
+  "Muy Bueno", 12082,
+  "Premium",   13791,
+  "Ideal",     21551
+)
+
+ggplot(data = demo) +
+  geom_bar(mapping = aes(x = corte, y = freq), stat = "identity")   #stat predeterminada count()
+```
+
+* Es posible que desees anular el mapeo predeterminado de las variables transformadas a las estéticas.
+```{r stat_a_aes}
+ggplot(data = diamantes) +
+  geom_bar(mapping = aes(x = corte, y = stat(prop), group = 1)) # para usar proporcion y no conteo
+```
+* Es posible que desees resaltar la transformación estadística en tu código. Por ejemplo, puedes usar stat_summary(), que resume los valores de y para cada valor único de x, para así resaltar el resumen que se está computando
+
+```{r stat_summary}
+ggplot(data = diamantes) +
+  stat_summary(
+    mapping = aes(x = corte, y = profundidad),
+    fun.min = min,
+    fun.max = max,
+    fun = median
+  )
+
+# The default geom for stat_summary() is geom_pointrange()
+```
+
+## Ajustes de posición
+```{r geom_bar_fill_colour}
+ggplot(data = diamantes) +
+  geom_bar(mapping = aes(x = corte, colour = corte))
+
+ggplot(data = diamantes) +
+  geom_bar(mapping = aes(x = corte, fill = corte))
+ggplot(data = diamantes) +
+  geom_bar(mapping = aes(x = corte, fill = claridad))
+```
+En geom_bar el valor de posicion por defecto es apilar (stack). 
+
+```{r geom_bar position_stack}
+ggplot(data = diamantes) +
+  geom_bar(mapping = aes(x = corte, fill = claridad))
+
+ggplot(data = diamantes) +
+  geom_bar(mapping = aes(x = corte, fill = claridad), position = "stack")
+
+```
+
+Hay 3 posibilidades de posición: 
+*  position = identity
+```{r geom_bar position_identity}
+ggplot(data = diamantes, mapping = aes(x = corte, fill = claridad)) +
+  geom_bar(alpha = 1/5, position = "identity")
+
+ggplot(data = diamantes, mapping = aes(x = corte, colour = claridad)) +
+  geom_bar(fill = NA, position = "identity")
+```
+
+* position = "fill" funciona como el apilamiento de position = "stack" pero todas las barras las lleva a proporción 1.
+```{r}
+ggplot(data = diamantes) +
+  geom_bar(mapping = aes(x = corte, fill = claridad), position = "fill")
+```
+
+* position = "dodge"
+```{r geom_bar position_dodge}
+ggplot(data = diamantes) +
+  geom_bar(mapping = aes(x = corte, fill = claridad), position = "dodge")
+```
+
+* positio = "jitter"
+En un scatterplot, cuando los puntos se superponen, este problema se conoce como solapamiento (overplotting), conviene usar position "jitter", que muestra los puntos superpuestos con diferencias para que se puedan ver. Se agrega "ruido" para que evitar la superposición. Ese ruido se puede controlar con **width**= controla la cantidad de desplazamiento horizontal, y
+**height**  controla la cantidad de desplazamiento vertical.
+
+```{r scatterplot_position_jitter}
+ggplot(data = millas) +
+  geom_point(mapping = aes(x = cilindrada, y = autopista), position = "jitter")
+
+ggplot(mtcars, aes(am, vs)) +
+  geom_jitter()
+
+ggplot(mtcars, aes(am, vs)) +
+  geom_jitter(width = 0.1, height = 0.1)
+ggplot(mtcars, aes(am, vs)) +
+  geom_jitter(position = position_jitter(width = 0.1, height = 0.1))
+
+jitter <- position_jitter(width = 0.1, height = 0.1)
+ggplot(mtcars, aes(am, vs)) +
+  geom_point(position = jitter) +
+  geom_point(position = jitter, color = "red", aes(am + 0.2, vs + 0.2))
+```
+
+
+```{r president_aproval}
+if (!file.exists('president_approval_polls.csv')){
+  download.file('https://projects.fivethirtyeight.com/polls-page/president_approval_polls.csv', 'president_approval_polls.csv')
+}
+df <- read.csv('president_approval_polls.csv')
+```
+```{r president_plots}
+
+df$end_date <- df$end_date %>% mdy()
+df %>% ggplot(aes(x = end_date, y = yes)) + geom_line()
+
+df %>% ggplot(aes(x = end_date, y = yes)) + geom_point() + geom_smooth()
+
+df %>% ggplot() + geom_point(aes(end_date, yes), color = 'green') + geom_point(aes(end_date, no), color = 'red')
+
+```
+
+```{r president_polls}
+if (!file.exists('president_polls.csv')){
+  download.file('https://projects.fivethirtyeight.com/polls-page/president_polls.csv', 'president_polls.csv')
+}
+df2 <- read.csv('president_polls.csv')
+df2$created_at <- df2$created_at %>% mdy_hm()
+df2 <- df2 %>% filter(candidate_name %in% c('Donald Trump', 'Joseph R. Biden Jr.', 'Bernard Sanders'))
+#geom_smooth
+df2 %>% ggplot(aes(created_at, pct, color = candidate_name)) + geom_point() + geom_smooth()
+#The facet grid function tells ggplot to split the data into different graphs based on the values in the faceted columns. to split into columns we use the notation . ~ column, and to split into rows we use column . ~
+df2 %>% ggplot(aes(created_at, pct)) + geom_point() + geom_smooth() + facet_grid(. ~ candidate_name)
+#Titulo y leyendas
+df2 %>% ggplot(aes(created_at, pct, color = candidate_name)) + geom_point() + geom_smooth() + xlab('Date') + ylab('%') + ggtitle('Presidential Candidate Approval over Time') + theme_bw()
+```
