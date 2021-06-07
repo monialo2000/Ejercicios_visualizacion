@@ -54,8 +54,28 @@ ggplot(diamantes) +
   geom_histogram(mapping = aes(x = y), binwidth = 0.5) +
   coord_cartesian(ylim = c(0, 50)) # también existe xlim (cuando se quiere "hacer zoom" en eje x)
 ```
+Es un buen hábito repetir tu análisis con y sin los valores inusuales. Si tienen un efecto mínimo en los resultados y no puedes descubrir por qué están en los datos, es razonable reemplazarlos con valores ausentes y seguir adelante con tu análisis. Sin embargo, si tienen un efecto sustancial en tus resultados, no deberías ignorarlos sin justificación.
 
+##Valores faltantes
 
+Si los valores inusuales se eliminan puedes quedar con pocos datos, y nada te dice si las demas mediciones (columnas) tenían datos confiables y los estas desperdiciando. 
+Una alternativa conveniente cambiar esos valores como valores faltantes NA. Se puede hacer con dplyr:: mutate(ifelse(condicion, TRUE, FALSE)) y en casos más complejos con 
+case_when().  
+ggplot2 emite mensaje cuando encuentra valores faltantes en los datos que se grafican:
+
+```{r valores_faltantes}
+diamantes %>% 
+  mutate(y = ifelse(y < 3 | y > 20, NA, y)) %>% 
+  ggplot(mapping = aes(x = x, y = y)) + 
+  geom_point() #Mensaje  Removed 9 rows containing missing values (geom_point)
+# Para eliminar el mensaje
+diamantes %>% 
+  mutate(y = ifelse(y < 3 | y > 20, NA, y)) %>%
+  ggplot(mapping = aes(x = x, y = y)) + 
+  geom_point(na.rm = TRUE)
+```
+
+## Covariacion
 
 
 
