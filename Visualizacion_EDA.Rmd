@@ -1,0 +1,169 @@
+---
+title: "R Visualizaciones Intermedio - EDA"
+output: html_notebook
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(datos)
+```
+
+## Objetivo:
+
+Veremos como utilizar las visualizaciones para hacer Analisis Exploratorio de Datos (EDA)
+
+### Visualizando distribuciones. 
+
+* Si una variable es categórica, en general se utiliza un gráfico de barras que muestra el conteo de cada valor posible de la variable categórica (utiliza la stat: count)
+
+* Si la variable es contínua, entonces para ver distribución combiene utilizar un histograma. En este caso se divide la variable en "franjas" y se realiza un conteo: se utiliza la stat_bin.
+En el caso de histograma conviene indicar el "ancho de las bandas" _binwidth_
+Puedes calcular esto manualmente combinando dplyr::count() y ggplot2::cut_width().
+Siempre deberías explorar una variedad de distintas medidas para el ancho del intervalo cuando estés trabajando con histogramas, pues distintas medidas pueden revelar diferentes patrones.
+Para sobreponer múltiples distribuciones contínuas en la misma gráfica, se recomienda usar geom_freqpoly().
+
+```{r dist_categoricas}
+
+ggplot(data = diamantes) +
+  geom_bar(mapping = aes(x = corte))
+
+ggplot(data = pequenos, mapping = aes(x = quilate, colour = corte)) +
+  geom_freqpoly(binwidth = 0.1)
+```
+```{r dist_continuas}
+pequenos <- diamantes %>% 
+  filter(quilate < 3)   # 1 variable histograma
+ggplot(data = diamantes) +
+  geom_histogram(mapping = aes(x = quilate), binwidth = 0.1) #variar binwidth al achicar más detalle
+ggplot(data = pequenos, mapping = aes(x = quilate, colour = corte)) +
+  geom_freqpoly(binwidth = 0.1)
+```
+
+**Las agrupaciones de valores similares sugieren que ciertos subgrupos existen en tus datos**  
+```{r subgrupos_posibles}
+ggplot(data = pequenos, mapping = aes(x = quilate)) +
+  geom_histogram(binwidth = 0.01)
+```
+## Valores Inusuales o atípicos (_outliers_)
+Son difíciles de hallar con un histograma. Se podría aislar las partes con menos valores, y estudiarlas. Otra forma es con puntos, pero si son muchas las observaciones, el gráfico es muy sucio.
+
+```{r outliers}
+ggplot(diamantes) + 
+  geom_histogram(mapping = aes(x = y), binwidth = 0.5) +
+  coord_cartesian(ylim = c(0, 50)) # también existe xlim (cuando se quiere "hacer zoom" en eje x)
+```
+
+
+
+
+
+
+
+Las siguiente tabla contienen los pares entre geometrías y estadísticos que se usan en conjunto.
+
+| geometría           | estadístico         |
+|---------------------|---------------------|
+| `geom_bar()`        | `stat_count()`      |
+| `geom_bin2d()`      | `stat_bin_2d()`     |
+| `geom_boxplot()`    | `stat_boxplot()`    |
+| `geom_contour()`    | `stat_contour()`    |
+| `geom_count()`      | `stat_sum()`        |
+| `geom_density()`    | `stat_density()`    |
+| `geom_density_2d()` | `stat_density_2d()` |
+| `geom_hex()`        | `stat_hex()`        |
+| `geom_freqpoly()`   | `stat_bin()`        |
+| `geom_histogram()`  | `stat_bin()`        |
+| `geom_qq_line()`    | `stat_qq_line()`    |
+| `geom_qq()`         | `stat_qq()`         |
+| `geom_quantile()`   | `stat_quantile()`   |
+| `geom_smooth()`     | `stat_smooth()`     |
+| `geom_violin()`     | `stat_violin()`     |
+| `geom_sf()`         | `stat_sf()`         |
+
+Tabla: Geometrías y estadísticos complementarios
+
+Los nombres tienen a ser similares, por ejemplo `geom_smooth()` y `stat_smooth()`, aunque hay casos como `geom_bar()` y `stat_count()`.
+
+La mayoría de las geometrías usa por defecto el estadístico que le corresponde en la tabla anterior. Recíprocamente, la mayoría de los estadísticos usan por defecto la geometría que le corresponde en la tabla anterior.
+
+Las siguientes tablas contienen las geometrías y estadísticos en [ggplot2](https://ggplot2.tidyverse.org/reference/).
+
+| geometría           | estadístico por defecto | documentación conjunta |
+|:--------------------|:--------------------|-------------|
+| `geom_abline()`     |                     |             |
+| `geom_hline()`      |                     |             |
+| `geom_vline()`      |                     |             |
+| `geom_bar()`        | `stat_count()`      | x           |
+| `geom_col()`        |                     |             |
+| `geom_bin2d()`      | `stat_bin_2d()`     | x           |
+| `geom_blank()`      |                     |             |
+| `geom_boxplot()`    | `stat_boxplot()`    | x           |
+| `geom_countour()`   | `stat_countour()`   | x           |
+| `geom_count()`      | `stat_sum()`        | x           |
+| `geom_density()`    | `stat_density()`    | x           |
+| `geom_density_2d()` | `stat_density_2d()` | x           |
+| `geom_dotplot()`    |                     |             |
+| `geom_errorbarh()`  |                     |             |
+| `geom_hex()`        | `stat_hex()`        | x           |
+| `geom_freqpoly()`   | `stat_bin()`        | x           |
+| `geom_histogram()`  | `stat_bin()`        | x           |
+| `geom_crossbar()`   |                     |             |
+| `geom_errorbar()`   |                     |             |
+| `geom_linerange()`  |                     |             |
+| `geom_pointrange()` |                     |             |
+| `geom_map()`        |                     |             |
+| `geom_point()`      |                     |             |
+| `geom_map()`        |                     |             |
+| `geom_path()`       |                     |             |
+| `geom_line()`       |                     |             |
+| `geom_step()`       |                     |             |
+| `geom_point()`      |                     |             |
+| `geom_polygon()`    |                     |             |
+| `geom_qq_line()`    | `stat_qq_line()`    | x           |
+| `geom_qq()`         | `stat_qq()`         | x           |
+| `geom_quantile()`   | `stat_quantile()`   | x           |
+| `geom_ribbon()`     |                     |             |
+| `geom_area()`       |                     |             |
+| `geom_rug()`        |                     |             |
+| `geom_smooth()`     | `stat_smooth()`     | x           |
+| `geom_spoke()`      |                     |             |
+| `geom_label()`      |                     |             |
+| `geom_text()`       |                     |             |
+| `geom_raster()`     |                     |             |
+| `geom_rect()`       |                     |             |
+| `geom_tile()`       |                     |             |
+| `geom_violin()`     | `stat_ydensity()`   | x           |
+| `geom_sf()`         | `stat_sf()`         | x           |
+
+Tabla: ggplot2 capas de geometrías y sus estadísticos por defecto.
+
+| estadístico          | geometría por defecto | documentación conjunta |
+|:---------------------|:--------------------|-------------|
+| `stat_ecdf()`        | `geom_step()`       |             |
+| `stat_ellipse()`     | `geom_path()`       |             |
+| `stat_function()`    | `geom_path()`       |             |
+| `stat_identity()`    | `geom_point()`      |             |
+| `stat_summary_2d()`  | `geom_tile()`       |             |
+| `stat_summary_hex()` | `geom_hex()`        |             |
+| `stat_summary_bin()` | `geom_pointrange()` |             |
+| `stat_summary()`     | `geom_pointrange()` |             |
+| `stat_unique()`      | `geom_point()`      |             |
+| `stat_count()`       | `geom_bar()`        | x           |
+| `stat_bin_2d()`      | `geom_tile()`       | x           |
+| `stat_boxplot()`     | `geom_boxplot()`    | x           |
+| `stat_countour()`    | `geom_contour()`    | x           |
+| `stat_sum()`         | `geom_point()`      | x           |
+| `stat_density()`     | `geom_area()`       | x           |
+| `stat_density_2d()`  | `geom_density_2d()` | x           |
+| `stat_bin_hex()`     | `geom_hex()`        | x           |
+| `stat_bin()`         | `geom_bar()`        | x           |
+| `stat_qq_line()`     | `geom_path()`       | x           |
+| `stat_qq()`          | `geom_point()`      | x           |
+| `stat_quantile()`    | `geom_quantile()`   | x           |
+| `stat_smooth()`      | `geom_smooth()`     | x           |
+| `stat_ydensity()`    | `geom_violin()`     | x           |
+| `stat_sf()`          | `geom_rect()`       | x           |
+
+Tabla: ggplot2 capas de estadísticos y sus geometrías por defecto.
