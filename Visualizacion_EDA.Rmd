@@ -149,7 +149,8 @@ Otra solucion es utilizar boxplots, pero haciendo previamente una segmentacion d
 ```{r boxplot cut_width, varwidth cut_number}
 
 pequenos %>% 
-  count(quilate)
+  count(quilate) %>% top_n(n, n = -10)
+
 ggplot(data = pequenos, mapping = aes(x = quilate, y = precio)) + 
   geom_boxplot(mapping = aes(group = cut_width(quilate, 0.2)))
 
@@ -162,6 +163,30 @@ ggplot(data = pequenos, mapping = aes(x = quilate, y = precio)) +
 
 ```
 
+## Patrones y modelos:
+Si encuentras un patrón, hazte las siguientes preguntas:
+
+¿ste patrón podría ser mera coincidencia? ¡¿cómo podrías describir la relación sugerida por este patrón?¿Qué tan fuerte es la relación sugerida por este patrón?¿Qué otras variables podrían afectar la relación?¿Cambia esta relación si examinas de manera individual distintos subgrupos de datos?
+
+Si piensas en la variación como un fenómeno que crea incertidumbre, la covariación es un fenómeno que la reduce. Si dos variables varían de manera conjunta, puedes usar los valores de una variable para hacer mejores predicciones sobre valores de la segunda. Si la covariación es producto de una relación causal (un caso especial), entonces puedes usar el valor de una variable para controlar el valor de la segunda.
+Los modelos son una herramienta para extraer patrones de los datos. Por ejemplo, considera los datos sobre diamantes. Resulta difícil entender la relación entre corte y precio, pues corte y quilate, así como quilate y precio, están estrechamente relacionadas. Es posible usar un modelo para remover la fuerte relación entre precio y quilate de manera que podamos explorar las sutilezas que quedan en los datos. El código mostrado a continuación crea un modelo que predice el precio a partir de la variable quilate y después calcula los residuales (la diferencia entre la variable predecida y el valor real). Los residuales nos informan acerca del precio de un diamante, una vez que el efecto que los quilates tienen sobre esta variable ha sido removido.
+
+```{r modeler}
+library(modelr)
+
+mod <- lm(log(precio) ~ log(quilate), data = diamantes)
+
+diamantes2 <- diamantes %>% 
+  add_residuals(mod) %>% 
+  mutate(resid = exp(resid))
+
+ggplot(data = diamantes2) + 
+  geom_point(mapping = aes(x = quilate, y = resid))
+#una vez removida la relacion precio-quilate, puedes observar lo que esperarías sobre la relación entre corte y precio: los diamantes de mejor calidad son más costosos según su tamaño.
+
+ggplot(data = diamantes2) + 
+  geom_boxplot(mapping = aes(x = corte, y = resid))
+```
 
 
 ## Relacion geometria, stat
