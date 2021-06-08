@@ -1,7 +1,9 @@
 ---
 title: "R Visualizaciones Intermedio - EDA"
-output: html_notebook
-editor_options: 
+output:
+  html_document:
+    df_print: paged
+editor_options:
   chunk_output_type: inline
 ---
 
@@ -25,6 +27,8 @@ Siempre deberías explorar una variedad de distintas medidas para el ancho del i
 Para sobreponer múltiples distribuciones contínuas en la misma gráfica, se recomienda usar geom_freqpoly().
 
 ```{r dist_categoricas}
+pequenos <- diamantes %>% 
+  filter(quilate < 3)   # 1 variable histograma
 
 ggplot(data = diamantes) +
   geom_bar(mapping = aes(x = corte))
@@ -33,8 +37,7 @@ ggplot(data = pequenos, mapping = aes(x = quilate, colour = corte)) +
   geom_freqpoly(binwidth = 0.1)
 ```
 ```{r dist_continuas}
-pequenos <- diamantes %>% 
-  filter(quilate < 3)   # 1 variable histograma
+
 ggplot(data = diamantes) +
   geom_histogram(mapping = aes(x = quilate), binwidth = 0.1) #variar binwidth al achicar más detalle
 ggplot(data = pequenos, mapping = aes(x = quilate, colour = corte)) +
@@ -49,7 +52,7 @@ ggplot(data = pequenos, mapping = aes(x = quilate)) +
 ## Valores Inusuales o atípicos (_outliers_)
 Son difíciles de hallar con un histograma. Se podría aislar las partes con menos valores, y estudiarlas. Otra forma es con puntos, pero si son muchas las observaciones, el gráfico es muy sucio.
 
-```{r outliers}
+```{r outliers coord_cartesian}
 ggplot(diamantes) + 
   geom_histogram(mapping = aes(x = y), binwidth = 0.5) +
   coord_cartesian(ylim = c(0, 50)) # también existe xlim (cuando se quiere "hacer zoom" en eje x)
@@ -74,13 +77,94 @@ diamantes %>%
   ggplot(mapping = aes(x = x, y = y)) + 
   geom_point(na.rm = TRUE)
 ```
+```{r summary scale_x_continuous}
+summary(select(diamantes, x, y, z))
+filter(diamantes, x > 0, x < 10) %>%
+  ggplot() +
+  geom_histogram(mapping = aes(x = x), binwidth = 0.01) +
+  scale_x_continuous(breaks = 1:10)
+```
+
 
 ## Covariacion
+La covariación es la tendencia de los valores de dos o más variables a variar simultáneamente de una manera relacionada. La mejor manera de reconocer que existe covariación en tus datos es visualizar la relación entre dos o más variables.
+
+### Una variable categórica y una variable continua
+ Una posibilidad es con freqpoly dividiendo por las lineas por corte, Pero si hay muchos casos de una determinada categoría se desvirtua. En esos casos conviene que el eje y sea la densidad (donde suma a 1) y no la cantidad
+```{r covarianza_categorica_continua_ density}
+ggplot(data = diamantes, mapping = aes(x = precio)) + 
+  geom_freqpoly(mapping = aes(colour = corte), binwidth = 500)
+
+ggplot(data = diamantes, mapping = aes(x = precio, y = ..density..)) + 
+  geom_freqpoly(mapping = aes(colour = corte), binwidth = 500)
+```
+ 
+Otra alternativa es con boxplot. En este caso, nos muestra que es más alto el precio para los cortes regulares, y más bajo para los ideales.
+
+```{r boxplot}
+diamantes %>% 
+  ggplot(aes(x = corte, y = precio)) +
+  geom_boxplot()
+```
+### 2 variables categóricas. 
+
+En general es limitado los geoms que se pueden utilizar en este caso, porque se van a suporponer valores (cosa que en general no pasa con una variable contínua). Para este caso el geom_count() es una buena opcion.
+
+```{r geom_count}
+ggplot(data = diamantes) +
+  geom_count(mapping = aes(x = corte, y = color))
+```
+Otra estrategia es calcular el recuento con dplyr, y después visualizar con geom_tile() y adaptar la estética de relleno (fill):
+```{r geom_tile con recuento y fill}
+diamantes %>% 
+  count(color, corte) %>% 
+  ggplot(mapping = aes(x = color, y = corte)) +
+    geom_tile(mapping = aes(fill = n))
+```
+
+### Dos variables contínuas:
+En este caso se pueden utilizar geom_point, pero a veces resulta muy pesado para verlo: en ese caso se puede usar la transparencia para que no sature tanto. 
+
+```{r alpha }
+ggplot(data = diamantes) +
+  geom_point(mapping = aes(x = quilate, y = precio))
+
+ggplot(data = diamantes) + 
+  geom_point(mapping = aes(x = quilate, y = precio), alpha = 1 / 100)
+```
+Otra solucion es modificar el parámetro bin. Hasta ahora hicimos bin en una sola dirección con geom_histogram y geom_freqpoly. Ahora usaremos con 2 dimensiones: usando geom_bin2d o geom_hex
+
+geom_bin2d() y geom_hex() dividen el plano cartesiano en unidades o contenedores bidimensionales y luego usan un color de relleno para mostrar cuántos puntos pueden ser clasificados en cada contenedor geom_bin2d() crea unidades rectangulares. geom_hex() crea unidades hexagonales (para usar geom_hex se necesitará instalar el paquete hexbin).
+
+```{r geom_bin2d geom_hexbin}
+ggplot(data = pequenos) +
+  geom_bin2d(mapping = aes(x = quilate, y = precio))
+
+library(hexbin)
+ggplot(data = pequenos) +
+  geom_hex(mapping = aes(x = quilate, y = precio))
+```
+Otra solucion es utilizar boxplots, pero haciendo previamente una segmentacion de una variable continua. cut_width(x, width) divide la variable x en intervalos de ancho width. Los diagramas así parecen muy similares sin importar la cantidad de casos. Para demostrar la cantidad de casos que representa cada caja, se puede usar usando también varwidth = TRUE... o también usando cut_number
+
+```{r boxplot cut_width, varwidth cut_number}
+
+pequenos %>% 
+  count(quilate)
+ggplot(data = pequenos, mapping = aes(x = quilate, y = precio)) + 
+  geom_boxplot(mapping = aes(group = cut_width(quilate, 0.2)))
+
+ggplot(data = pequenos, mapping = aes(x = quilate, y = precio)) + 
+  geom_boxplot(mapping = aes(group = cut_width(quilate, 0.2)), varwidth = TRUE)
+
+#Otra solución es mostrar aproximadamente el mismo número de datos en cada intervalo o unidad. Esto puedes lograrlo con cut_number():
+ggplot(data = pequenos, mapping = aes(x = quilate, y = precio)) + 
+  geom_boxplot(mapping = aes(group = cut_number(quilate, 20)))
+
+```
 
 
 
-
-
+## Relacion geometria, stat
 Las siguiente tabla contienen los pares entre geometrías y estadísticos que se usan en conjunto.
 
 | geometría           | estadístico         |
@@ -187,3 +271,8 @@ Tabla: ggplot2 capas de geometrías y sus estadísticos por defecto.
 | `stat_sf()`          | `geom_rect()`       | x           |
 
 Tabla: ggplot2 capas de estadísticos y sus geometrías por defecto.
+
+
+
+
+
