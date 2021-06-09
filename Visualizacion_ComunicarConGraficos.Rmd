@@ -1,0 +1,152 @@
+---
+title: "Visualizacion - Comunicar con Graficos"
+output:
+  html_document:
+    df_print: paged
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r setup, include= FALSE}
+
+library(tidyverse)
+library(datos)
+library(ggrepel)
+library(viridis)
+```
+
+## Etiquetas 
+
+labs() es una de las funciones que podemos utilizar para agregar etiquetas
+```{r labs_titulo_subtitulo_caption}
+ggplot(millas, aes(cilindrada, autopista)) +
+  geom_point(aes(color = clase)) +
+  geom_smooth(se = FALSE) +
+  labs(
+    title = "La eficiencia del combustible generalmente disminuye con el tamaño del motor",
+    subtitle = "Los automóviles deportivos de dos asientos son la excepción debido a su peso liviano",
+    caption = "Datos de fueleconomy.gov"
+  )
+```
+También se puede usar labs() para cambiar nombre de ejes, y de los cuadros por ejemplo de color.
+
+```{r labs_ejes_cuadros}
+ggplot(millas, aes(cilindrada, autopista)) +
+  geom_point(aes(colour = clase)) +
+  geom_smooth(se = FALSE) +
+  labs(
+    x = "Tamaño del motor (litros)",
+    y = "Economía de combustible de carretera (millas)",
+    colour = "Tipo de automóvil"
+  )
+```
+En los ejes también se pueden escribir fórmulas con quote(): Más acerca de opciones disponibles en  ?plotmath
+```{r quote}
+df <- tibble(
+  x = runif(10),
+  y = runif(10)
+)
+
+ggplot(df, aes(x, y)) +
+  geom_point() +
+  labs(
+    x = quote(sum(x[i]^2, i == 1, n)),
+    y = quote(alpha + beta + frac(delta, theta))
+  )
+```
+
+## Anotaciones
+Para etiquetar partes principales del gráfico, grupos de observaciones u observaciones individuales. * geom_text(): es similar a geom_point() pero agrega label. Ojo que se pueden superponer...
+* geom_label(): arma un recuadro alrededor del texto. También se puede superponer (con opción nudge_y se mueve el label un poco por encima)
+* paquete ggrepel: ajusta automáticamente las etiquetas para que no se superpongan.
+
+```{r geom_text geom_label geom_label_repel}
+mejor_de_su_clase <- millas %>%   
+  group_by(clase) %>%
+  filter(row_number(desc(autopista)) == 1)
+
+ggplot(millas, aes(cilindrada, autopista)) +    #geom_text   
+  geom_point(aes(colour = clase)) +
+  geom_text(aes(label = modelo), data = mejor_de_su_clase)
+
+ggplot(millas, aes(cilindrada, autopista)) +    #geom_label
+  geom_point(aes(colour = clase)) +
+  geom_label(aes(label = modelo), data = mejor_de_su_clase, nudge_y = 2, alpha = 0.5)
+
+ggplot(millas, aes(cilindrada, autopista)) +    #ggrepel::geom_label_repel
+  geom_point(aes(colour = clase)) +
+  geom_point(size = 3, shape = 1, data = mejor_de_su_clase) +
+  ggrepel::geom_label_repel(aes(label = modelo), data = mejor_de_su_clase)
+
+# técnica muy práctica utilizada aquí: agregar  segunda capa de puntos grandes y huecos para resaltar los puntos etiquetados.
+```
+También se puede utilizar esta técnica para eliminar la leyenda del cuadro, y que los textos esten en el mismo gráfico. 
+
+```{r geom_label_repel y legend.position none}
+clase_promedio <- millas %>%
+  group_by(clase) %>%
+  summarise(
+    cilindrada = median(cilindrada),
+    autopista = median(autopista)
+  )
+
+ggplot(millas, aes(cilindrada, autopista, colour = clase)) +
+  ggrepel::geom_label_repel(aes(label = clase),
+    data = clase_promedio,
+    size = 6,
+    label.size = 0,
+    segment.color = NA
+  ) +
+  geom_point() +
+  theme(legend.position = "none")
+```
+También se puede querer agregar una única leyenda al gráfico. pero igualmente hay que generar un set de datos.  
+**Notar el /n en el texto para que se imprima en 2 lineas**  
+**Otra posibilidad es usar  stringr::str_wrap() para agregar saltos de línea automáticamente, dado el número de caracteres que se desea por línea.**
+
+```{r str_wrap}
+"El aumento del tamaño del motor está relacionado con la disminución en el gasto de combustible." %>%
+  stringr::str_wrap(width = 40) %>%
+  writeLines()
+#> El aumento del tamaño del motor está
+#> relacionado con la disminución en el
+#> gasto de combustible.
+```
+
+```{r unico_texto_vjust_hjust}
+etiqueta <- millas %>%       # derecha arriba según datos máximos
+  summarise(
+    cilindrada = max(cilindrada),
+    autopista = max(autopista),
+    etiqueta = "El aumento del tamaño del motor está \nrelacionado con la disminución en el gasto de combustible."
+  )
+
+ggplot(millas, aes(cilindrada, autopista)) +
+  geom_point() +
+  geom_text(aes(label = etiqueta), data = etiqueta, vjust = "top", hjust = "right")
+
+
+
+```
+Si deseas colocar el texto exactamente en los bordes del gráfico puedes usar +Inf y -Inf. Como ya no estamos calculando las posiciones de millas, podemos usar tibble() para crear el conjunto de datos:
+```{r geom_text Inf -Inf }
+# etiqueta <- millas %>%
+#   summarise(
+#     cilindrada = Inf,
+#     autopista = Inf,
+#     etiqueta = "El aumento del tamaño del motor está \nrelacionado con la disminución en el gasto de combustible."
+#  ) 
+etiqueta <- tribble(
+  ~cilindrada, ~ autopista, ~ etiqueta,
+    Inf, Inf, "El aumento del tamaño del motor está \nrelacionado con la disminución en el gasto de combustible."
+)
+
+ggplot(millas, aes(cilindrada, autopista)) +
+  geom_point() +
+  geom_text(aes(label = etiqueta), data = etiqueta, vjust = "top", hjust = "right")
+```
+
+## Posiciones vjust_hjust para agregar etiquetas
+ ![](vjust_hjust.JPG)
+
+
