@@ -381,11 +381,275 @@ ggplot(millas, aes(cilindrada, autopista)) +
 ```
 Puedes usar labels de la misma manera (un vector de caracteres de la misma longitud que breaks), o puedes establecerlas como NULL del inglés nulo, para suprimir las etiquetas por completo. Esto es útil para mapas, o para publicar gráficos donde no puedes compartir los números absolutos.
 
-```{r labels}
+```{r labels null}
 ggplot(millas, aes(cilindrada, autopista)) +
   geom_point() +
   scale_x_continuous(labels = NULL) +
   scale_y_continuous(labels = NULL)
+```
+
+En conjunto, los ejes y las leyendas se llaman guías. Los ejes se usan para la estética de x e y; las leyendas se usan para todo lo demás.  
+Otro uso de los breaks es cuando tienes relativamente pocos puntos de datos y deseas resaltar exactamente dónde se producen las observaciones. 
+
+En el siguiente caso nos interesa remarcar el inicio de las presidencias:
+```{r inicio presidenciales}
+presidencial %>%
+  mutate(id = 33 + row_number()) %>%
+  ggplot(aes(inicio, id)) +
+  geom_point() +
+  geom_segment(aes(xend = fin, yend = id)) +
+  scale_x_date(NULL, breaks = presidencial$inicio, date_labels = "'%y")
+```
+Ten en cuenta que la especificación de breaks y labels para escalas en formato de fecha y fecha y hora es ligeramente diferente:
+
+date_labels toma en cuenta la especificación de formato, en la misma forma que parse_datetime().
+
+date_breaks, toma una cadena como “2 días” o “1 mes”.
+
+```{r breaks date_time}
+# ver para tener todas las definciones scale_date {ggplot2}
+#también se puede establecer el formato de las fechas con date_labels.
+# Los códigos estan definidos en strftime(). 
+# Si se especifican tanto labels como date_label, prevalece date_labels.
+#date_minor_breaks es un string que define la distancia entre los beraks, por ej. "2 weeks" o "10 years". Idem date_labels... date_minor_breaks prevalece frente a minor_breaks.
+
+last_month <- Sys.Date() - 0:29
+df <- data.frame(
+  date = last_month,
+  price = runif(30)
+)
+base <- ggplot(df, aes(date, price)) +
+  geom_line()
+
+# The date scale will attempt to pick sensible defaults for
+# major and minor tick marks. Override with date_breaks, date_labels
+# date_minor_breaks arguments.
+base + scale_x_date(date_labels = "%b %d")
+base + scale_x_date(date_breaks = "1 week", date_labels = "%W")
+base + scale_x_date(date_minor_breaks = "1 day")
+
+# Set limits
+base + scale_x_date(limits = c(Sys.Date() - 7, NA))
+
+
+p <- ggplot(mtcars, aes(cyl, mpg)) +
+  geom_point()
+p + scale_y_continuous(sec.axis = dup_axis()) # Duplicate the primary axis
+# para fechas
+df <- data.frame(
+  dx = seq(as.POSIXct("2012-02-29 12:00:00",
+                       tz = "UTC",
+                       format = "%Y-%m-%d %H:%M:%S"
+  ),
+  length.out = 10, by = "4 hour"
+  ),
+  price = seq(20, 200000, length.out = 10)
+ )
+```
+
+También se pueden definir ejes secundarios. Define otro eje en el lado opuesto
+
+```{r sec_axis}
+p <- ggplot(mtcars, aes(cyl, mpg)) +
+  geom_point()
+p + scale_y_continuous(sec.axis = dup_axis()) # Duplicate the primary axis
+# para fechas
+df <- data.frame(
+  dx = seq(as.POSIXct("2012-02-29 12:00:00",
+                       tz = "UTC",
+                       format = "%Y-%m-%d %H:%M:%S"
+  ),
+  length.out = 10, by = "4 hour"
+  ),
+  price = seq(20, 200000, length.out = 10)
+ )
+
+ggplot(df, aes(x = dx, y = price)) + geom_line() +
+  scale_x_datetime("Date", date_labels = "%b %d",
+  date_breaks = "6 hour",
+  sec.axis = dup_axis(name = "Time of Day",
+  labels = scales::time_format("%I %p")))
+
+# or to transform axes for different timezones
+ggplot(df, aes(x = dx, y = price)) + geom_line() +
+  scale_x_datetime("GMT", date_labels = "%b %d %I %p",
+  sec.axis = sec_axis(~ . + 8 * 3600, name = "GMT+8",
+  labels = scales::time_format("%b %d %I %p")))
+```
+
+## Diseño de leyendas:
+
+Con mayor frecuencia utilizarás breaks y labels para ajustar los ejes. Aunque ambos también funcionan con leyendas, hay algunas otras técnicas que se pueden usar.
+
+Para controlar la posición general de la leyenda, debes usar una configuración de theme().
+
+```{r theme legend.position}
+base1 <- ggplot(millas, aes(cilindrada, autopista)) +
+  geom_point(aes(colour = clase))
+
+base1 + theme(legend.position = "left")
+base1 + theme(legend.position = "top")
+base1 + theme(legend.position = "bottom")
+base1 + theme(legend.position = "right")
+# También puedes usar legend.position = "none" para suprimir por completo la visualización de la leyenda.
+```
+Para controlar la visualización de leyendas individuales, usa guides() junto con guide_legend() o guide_colourbar()
+
+```{r guides guide_legend}
+# ejemplo muestra dos configuraciones importantes: 
+# controlar el número de filas que usa la leyenda con nrow
+# redefinir una de las estéticas para agrandar los puntos: Esto es particularmente útil si has usado un valor de alfa bajo para mostrar muchos puntos en un diagrama.
+
+ggplot(millas, aes(cilindrada, autopista)) + 
+  geom_point(aes(colour = clase)) +
+  geom_smooth(se = FALSE) +
+  theme(legend.position = "bottom") +
+  guides(colour = guide_legend(nrow = 1, override.aes = list(size = 4))) #observar limite nro. de lineas  usadas en legenda (al ser posición bottom)
+
+```
+
+## Reemplazando una escala:
+En lugar de simplemente modificar un poco los detalles, puedes reemplazar la escala por completo. Hay dos tipos de escalas que es probable que desees cambiar: escalas de posición continua y escalas de color. 
+
+```{r transformacion_logaritmica geom_bin2d scale_x_y_log10}
+ggplot(diamantes, aes(quilate, precio)) +
+  geom_bin2d()
+
+ggplot(diamantes, aes(log10(quilate), log10(precio))) + #notar nombre de los ejes
+  geom_bin2d()
+
+ggplot(diamantes, aes(quilate, precio)) +   #mejora en nombre ejes
+  geom_bin2d() +
+  scale_x_log10() +
+  scale_y_log10()
+```
+También es común cambiar escala de colores:
+
+```{r scale_colour_brewer}
+ggplot(millas, aes(cilindrada, autopista)) +
+  geom_point(aes(color = traccion))
+
+ggplot(millas, aes(cilindrada, autopista)) +
+  geom_point(aes(color = traccion)) +
+  scale_colour_brewer(palette = "Set1")
+```
+No olvides las técnicas más simples. **Si solo hay unos pocos colores**, puedes agregar un mapeo de forma redundante. Esto también ayudará a asegurar que tu gráfico sea interpretable en blanco y negro.
+
+```{r scale_colour y shape}
+ggplot(millas, aes(cilindrada, autopista)) +
+  geom_point(aes(color = traccion, shape = traccion)) +
+  scale_colour_brewer(palette = "Set1")
+```
+
+**Importante**
+Las escalas de ColorBrewer están documentadas en línea en http://colorbrewer2.org/ y están disponibles en R en el paquete RColorBrewer de Erich Neuwirth. 
+
+En R4DS se listan también. 
+Las paletas secuenciales (arriba) y divergentes (abajo) son particularmente útiles si sus valores categóricos están ordenados o tienen un “centro”. Esto a menudo ocurre si has utilizado **cut()** para convertir una variable continua en una variable categórica.
+
+Cuando tengas un mapeo predefinido entre valores y colores, usa scale_colour_manual().
+
+```{r scale_colour_manual}
+presidencial %>%
+  mutate(id = 33 + row_number()) %>%
+  ggplot(aes(inicio, id, colour = partido)) +
+  geom_point() +
+  geom_segment(aes(xend = fin, yend = id)) +
+  scale_colour_manual(values = c(Republicano = "red", Demócrata = "blue"))
+```
+
+Para generar una escala de color para variables continuas , puedes usar built in scale_colour_gradient() o scale_fill_gradient(). Si tienes una escala divergente, puedes usar scale_colour_gradient2(). Eso tepermite dar, por ejemplo, diferentes colores a valores positivos y negativos. Esto a veces también es útil si quieres distinguir puntos por encima o por debajo de la media.
+
+Otra opción es scale_colour_viridis() proporcionada por el paquete **viridis**: es un análogo continuo de las escalas categóricas de ColorBrewer. 
+
+```{r paquete_viridis scale_colour_gradient scale_fill_gradient}
+df <- tibble(
+  x = rnorm(10000),
+  y = rnorm(10000)
+)
+ggplot(df, aes(x, y)) +
+  geom_hex() +
+  coord_fixed()
+#viridis (no se carga)
+ggplot(df, aes(x, y)) +
+  geom_hex() +
+  viridis::scale_fill_viridis() +
+  coord_fixed()
+```
+
+
+```{r Ejercicios_Escalas}
+# 1. ¿Por qué el siguiente código no reemplaza la escala predeterminada?
+#     scale_fill_gradient en vez de  scale_colour_gradient
+
+ggplot(df, aes(x, y)) + 
+ geom_hex() +
+ scale_colour_gradient(low = "white", high = "red") +
+ coord_fixed()
+
+ggplot(df, aes(x, y)) +  # version corregida necesita que sea fill, no colour
+  geom_hex() +
+  scale_fill_gradient(low = "white", high = "red") +
+  coord_fixed()
+```
+
+
+## Haciendo Zoom:
+
+Hay tres formas de controlar los límites de un gráfico:
+
+Modificando los datos que se grafican
+Estableciendo los límites en cada escala
+Estableciendo xlim y ylim en coord_cartesian(): **Para ampliar una región del gráfico, generalmente es mejor usar coord_cartesian()**
+
+```{r zoom coord_cartesian mejor que filter de puntos (no refleja realidad)}
+ggplot(millas, mapping = aes(cilindrada, autopista)) +
+  geom_point(aes(color = clase)) +
+  geom_smooth() +
+  coord_cartesian(xlim = c(5, 7), ylim = c(10, 30))
+
+millas %>%
+  filter(cilindrada >= 5, cilindrada <= 7, autopista >= 10, autopista <= 30) %>%
+  ggplot(aes(cilindrada, autopista)) +
+  geom_point(aes(color = clase)) +
+  geom_smooth()
+```
+
+
+También puedes establecer limits del inglés límites en escalas individuales. La reducción de los límites del gráfico es equivalente a seleccionar un subconjunto de los datos. En general es más útil si deseas expandir los límites, por ejemplo, cuando quieres hacer coincidir escalas de diferentes gráficos. A modo de ejemplo, si extraemos dos clases de automóviles y los graficamos por separado, son difíciles de comparar ya que las tres escalas (el eje x, el eje y y la estética del color) tienen rangos diferentes.
+
+```{r zoom dos graficos con filter vs. limits}
+# colores de traccion inconsistentes y 
+
+suv <- millas %>% filter(clase == "suv")
+compacto <- millas %>% filter(clase == "compacto")
+
+ggplot(suv, aes(cilindrada, autopista, colour = traccion)) +
+  geom_point()
+
+ggplot(compacto, aes(cilindrada, autopista, colour = traccion)) +
+  geom_point()
+
+## usando limits y range para definir los limites (range da el valor minimo y máximo)
+## notar como x_scale, y_scale, col_scale quedan definidas como environment
+
+x_scale <- scale_x_continuous(limits = range(millas$cilindrada))
+y_scale <- scale_y_continuous(limits = range(millas$autopista))
+col_scale <- scale_colour_discrete(limits = unique(millas$traccion))
+
+ggplot(suv, aes(cilindrada, autopista, colour = traccion)) +
+  geom_point() +
+  x_scale +
+  y_scale +
+  col_scale
+
+ggplot(compacto, aes(cilindrada, autopista, colour = traccion)) +
+  geom_point() +
+  x_scale +
+  y_scale +
+  col_scale
+
+# en este caso en particular se podría utilizar facetas para separar en suv y compacto
 ```
 
 
