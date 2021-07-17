@@ -27,7 +27,10 @@ ggplot(data = millas) +
 ```
 
 Para mapear (o asignar) una estética a una variable, debes asociar el nombre de la estética al de la variable dentro de aes(). ggplot2 asignará automáticamente un nivel único de la estética (en este ejemplo, un color) a cada valor único de la variable. Este proceso es conocido como **escalamiento **.
-**Tener cuidado al asignar la estética, si usa tamaño no conviene asignarle variables discretas**
+
+Cuáles son las distintas **estéticas**: **color** (o colour), forma (**shape**) de puntos,  tamaño (**size**), relleno(**fill**), transparencia(**alpha**), trazo(**stroke**), "tipo de linea" continuo, punteado (**linetype**) de las líneas. Y por supuesto **x** e **y**.  
+
+**Tener cuidado al asignar la estética, si usa tamaño no conviene asignarle variables discretas**: mapear una variable no ordenada (clase) a una estética ordenada (size) no es una buena idea.  
 lo que se defina en aes, debe mapear a una variable.
 **Para establecer una estética de forma manual, debes usar el nombre de la estética como un argumento de la función geom; es decir, va fuera de aes()**
 
@@ -55,8 +58,8 @@ millas %>%
 
 ```{r stroke_aesthetic}
 # Note that shapes 21-24 have both stroke colour and a fill. The size of the filled part is controlled by size, the size of the stroke is controlled by stroke. Each is measured in mm, and the total size of the point is the sum of the two. Note that the size is constant along the diagonal in the following figure. Stroke cambia el contorno de la figura
-sizes <- expand.grid(size = (0:3) * 2, stroke = (0:3) * 2)
-ggplot(sizes, aes(size, stroke, size = size, stroke = stroke)) + 
+d_tamanios <- expand.grid(v_tamanio = (0:3) * 2, v_trazo = (0:3) * 2)
+ggplot(d_tamanios, aes(v_tamanio, v_trazo, size = v_tamanio, stroke = v_trazo)) + 
   geom_abline(slope = -1, intercept = 6, colour = "white", size = 6) + 
   geom_point(shape = 21, fill = "red") +
   scale_size_identity()
