@@ -178,10 +178,21 @@ mod <- lm(log(precio) ~ log(quilate), data = diamantes)
 
 diamantes2 <- diamantes %>% 
   add_residuals(mod) %>% 
-  mutate(resid = exp(resid))
+  mutate(resid = exp(resid)) #usa exponencial sobre residuos porque la regresión la hizo aplicando logarítmo a las variables
 
-ggplot(data = diamantes2) + 
-  geom_point(mapping = aes(x = quilate, y = resid))
+ggplot(diamantes2) +
+  geom_point(aes(x= quilate, y = resid))
+
+#ojo agregado por mí, para ver la relación lineal cuando se aplica log a las variables
+ggplot(data = diamantes,aes(log(precio), log(quilate))) +
+    stat_summary(fun.data=mean_cl_normal) + 
+    geom_point() +geom_smooth(method='lm', formula= y~x)
+
+# asi sería sin aplicar logarítmo, que hace una forma un poco exponencial
+
+ggplot(data = diamantes, aes(x = quilate, y = precio)) + 
+  geom_point() +
+  geom_smooth()
 #una vez removida la relacion precio-quilate, puedes observar lo que esperarías sobre la relación entre corte y precio: los diamantes de mejor calidad son más costosos según su tamaño.
 
 ggplot(data = diamantes2) + 
@@ -213,7 +224,7 @@ Las siguiente tabla contienen los pares entre geometrías y estadísticos que se
 
 Tabla: Geometrías y estadísticos complementarios
 
-Los nombres tienen a ser similares, por ejemplo `geom_smooth()` y `stat_smooth()`, aunque hay casos como `geom_bar()` y `stat_count()`.
+Los nombres tienden a ser similares, por ejemplo `geom_smooth()` y `stat_smooth()`, aunque hay casos como `geom_bar()` y `stat_count()`.
 
 La mayoría de las geometrías usa por defecto el estadístico que le corresponde en la tabla anterior. Recíprocamente, la mayoría de los estadísticos usan por defecto la geometría que le corresponde en la tabla anterior.
 
