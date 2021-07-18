@@ -28,9 +28,9 @@ ggplot(data = millas) +
 
 Para mapear (o asignar) una estética a una variable, debes asociar el nombre de la estética al de la variable dentro de aes(). ggplot2 asignará automáticamente un nivel único de la estética (en este ejemplo, un color) a cada valor único de la variable. Este proceso es conocido como **escalamiento **.
 
-Cuáles son las distintas **estéticas**: **color** (o colour), forma (**shape**) de puntos,  tamaño (**size**), relleno(**fill**), transparencia(**alpha**), trazo(**stroke**), "tipo de linea" continuo, punteado (**linetype**) de las líneas. Y por supuesto **x** e **y**.  
+Cuáles son algunas de las más usadas **estéticas**: **color** (o colour), forma (**shape**) de puntos,  tamaño (**size**), relleno(**fill**), transparencia(**alpha**), trazo(**stroke**), "tipo de linea" continuo, punteado (**linetype**) de las líneas, **group** para agrupar. Y por supuesto **x** e **y**.  
 
-**Tener cuidado al asignar la estética, si usa tamaño no conviene asignarle variables discretas**: mapear una variable no ordenada (clase) a una estética ordenada (size) no es una buena idea.  
+**Tener cuidado al asignar la estética, si usa tamaño no conviene asignarle variables discretas**. mapear una variable no ordenada (clase) a una estética ordenada (size) no es una buena idea.  
 lo que se defina en aes, debe mapear a una variable.
 **Para establecer una estética de forma manual, debes usar el nombre de la estética como un argumento de la función geom; es decir, va fuera de aes()**
 
@@ -44,12 +44,13 @@ theme_replace   theme_set        theme_void
 ```{r them}
 ggplot(data = millas) +
  geom_point(mapping = aes(x = cilindrada, y = autopista, color = autopista)) +
- theme_bw() #fondo blanco lineas de grid
+ theme_bw() 
+#fondo blanco lineas de grid
  #theme_void sólo grafico sin ejes ni nada
  
 ```
 
-```{r}
+```{r color_manual}
 millas %>% 
   ggplot(aes(x = cilindrada, y = autopista)) + 
   geom_point(color = "blue")
@@ -135,19 +136,19 @@ millas %>%
 
 * geom_point scatterplot o diagramas de dispersión grafica los valores brutos (identity)
 * geom_bar, geom_histogram, geom_freqpoly (polígonos de frecuencia) utilizan bins (contenedores) con count() número de puntos que caen en cada contenedor. stat_count()
-* geom_smooth ajustan un modelo a los datos y luego grafican las predicciones del modelo
-* geom_boxplot calculan un resumen robusto de la distribución y luego muestran una caja con formato especial (mediana, quantiles, puntos... )
+* geom_smooth ajusta un modelo a los datos y luego grafica las predicciones del modelo
+* geom_boxplot calculan un resumen robusto de la distribución y luego muestran una caja con formato especial (mediana, quantiles, puntos outliers... )
 
 ```{r geom_bar}
 diamantes %>% 
   ggplot(aes(corte)) +
-  geom_bar()
+  geom_bar( ) # se le puede dar ancho ej. width = 0.5
 
 # o bien
 ggplot(data = diamantes) +
   stat_count(mapping = aes(x = corte))
 
-?geom_bar
+
 ```
 Hay tres razones por las que podrías necesitar usar una estadística explícitamente:
 * Es posible que desees anular la estadística predeterminada
@@ -162,7 +163,10 @@ demo <- tribble(
 )
 
 ggplot(data = demo) +
-  geom_bar(mapping = aes(x = corte, y = freq), stat = "identity")   #stat predeterminada count()
+  geom_bar(mapping = aes(x = corte, y = freq), stat = "identity")   #stat predeterminada stat_count()
+
+ggplot(data = demo, aes(x = corte)) +
+  geom_bar()
 ```
 
 * Es posible que desees anular el mapeo predeterminado de las variables transformadas a las estéticas.
@@ -185,6 +189,7 @@ ggplot(data = diamantes) +
 ```
 
 ## Ajustes de posición
+
 ```{r geom_bar_fill_colour}
 ggplot(data = diamantes) +
   geom_bar(mapping = aes(x = corte, colour = corte))
@@ -201,7 +206,7 @@ ggplot(data = diamantes) +
   geom_bar(mapping = aes(x = corte, fill = claridad))
 
 ggplot(data = diamantes) +
-  geom_bar(mapping = aes(x = corte, fill = claridad), position = "stack")
+  geom_bar(mapping = aes(x = corte, fill = claridad), position = "stack") #identicos
 
 ```
 
@@ -309,6 +314,25 @@ ggplot(data = millas, mapping = aes(x = clase, y = autopista)) +
        caption = "Fuente: http://fueleconomy.gov")
 ```
 
+```{r grafico_donnas coord_polar}
+#calcula las proporciones
+diamantes %>% 
+  count(corte) %>% 
+  mutate(proporc = cumsum(n)/sum(n),
+         ymax = cumsum(proporc),
+         ymin = c(0, head(ymax, n = -1)),
+         posicion = ymax + ymin/2) %>% 
+  ggplot(aes(ymax = ymax, ymin = ymin, xmax = 4, xmin = 3, fill = corte)) +
+  geom_rect() +
+  coord_polar(theta = "y") +
+# geom_label(x = 3.5, aes(y = posicion, label = ABRIL), size = 6) +
+#  geom_text(x = 3.5, aes(y = posicion, label = ABRIL)) +
+  xlim(c(2, 4)) +
+  theme_void()  +
+  scale_fill_brewer(palette = "set3")
+
+```
+
 
 ## La gramática de gráficos en capas
 
@@ -343,9 +367,11 @@ Ejercicio adicional
 ```{r president_aproval}
 if (!file.exists('president_approval_polls.csv')){
   download.file('https://projects.fivethirtyeight.com/polls-page/president_approval_polls.csv', 'president_approval_polls.csv')
-}
 df <- read.csv('president_approval_polls.csv')
+}
+
 ```
+
 ```{r president_plots}
 
 df$end_date <- df$end_date %>% mdy()
@@ -369,5 +395,7 @@ df2 %>% ggplot(aes(created_at, pct, color = candidate_name)) + geom_point() + ge
 #The facet grid function tells ggplot to split the data into different graphs based on the values in the faceted columns. to split into columns we use the notation . ~ column, and to split into rows we use column . ~
 df2 %>% ggplot(aes(created_at, pct)) + geom_point() + geom_smooth() + facet_grid(. ~ candidate_name)
 #Titulo y leyendas
-df2 %>% ggplot(aes(created_at, pct, color = candidate_name)) + geom_point() + geom_smooth() + xlab('Date') + ylab('%') + ggtitle('Presidential Candidate Approval over Time') + theme_bw()
+p <- df2 %>% ggplot(aes(created_at, pct, color = candidate_name)) + geom_point() + geom_smooth() + xlab('Date') + ylab('%') + ggtitle('Presidential Candidate Approval over Time') + theme_bw() 
+
+ggsave("presidential_dia_porc.pdf", p)
 ```
